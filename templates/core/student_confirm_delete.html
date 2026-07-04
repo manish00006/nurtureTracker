@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Confirm Delete — Nurture{% endblock %}
+
+{% block content %}
+<div class="delete-confirm">
+    <div class="card">
+        <div class="warning-icon">⚠️</div>
+        <h2>Deactivate Student</h2>
+        <p>Are you sure you want to deactivate <strong>{{ student.name }}</strong>?<br>
+        This student will be hidden from active lists but data will be preserved.</p>
+        <form method="post">
+            {% csrf_token %}
+            <div class="delete-actions">
+                <button type="submit" class="btn btn-danger">Yes, Deactivate</button>
+                <a href="{% url 'student_list' %}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

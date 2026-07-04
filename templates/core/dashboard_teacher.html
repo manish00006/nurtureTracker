@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Teacher Dashboard — Nurture{% endblock %}
+
+{% block content %}
+<div class="welcome-section">
+    <h1 class="welcome-title">👋 Hello, {{ user.first_name|default:"Teacher" }}</h1>
+    <p class="welcome-subtitle">{{ today|date:"l, d F Y" }} — {{ my_student_count }} students across {{ my_batches.count }} batch{{ my_batches.count|pluralize:"es" }}</p>
+</div>
+
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-icon purple">👨‍🎓</div>
+        <div><div class="stat-value">{{ my_student_count }}</div><div class="stat-label">My Students</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon green">✅</div>
+        <div><div class="stat-value">{{ today_marked }}/{{ total_to_mark }}</div><div class="stat-label">Marked Today</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon amber">📚</div>
+        <div><div class="stat-value">{{ my_batches.count }}</div><div class="stat-label">My Batches</div></div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon red">📬</div>
+        <div><div class="stat-value">{{ unread_notices }}</div><div class="stat-label">Unread Messages</div></div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="card" style="margin-bottom: var(--space-md);">
+    <h2 class="card-title" style="margin-bottom: var(--space-md);">⚡ Quick Actions</h2>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem;">
+        <a href="{% url 'bulk_attendance' %}" class="btn btn-primary btn-sm">📋 Mark Attendance</a>
+        <a href="{% url 'bulk_scores' %}" class="btn btn-success btn-sm">📝 Enter Scores</a>
+        <a href="{% url 'concept_mastery' %}" class="btn btn-outline btn-sm">🎯 Concept Mastery</a>
+        <a href="{% url 'homework_create' %}" class="btn btn-outline btn-sm">📖 Assign Homework</a>
+    </div>
+</div>
+
+<!-- At-Risk Alerts -->
+{% if at_risk_students %}
+<div class="card" style="margin-bottom: var(--space-md); border-left: 3px solid var(--danger);">
+    <div class="card-header">
+        <h2 class="card-title">⚠️ At-Risk Students</h2>
+        <span class="badge badge-absent">{{ at_risk_students|length }} alert{{ at_risk_students|length|pluralize:"s" }}</span>
+    </div>
+    {% for alert in at_risk_students %}
+    <div style="padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <a href="{% url 'student_detail' alert.student.pk %}" style="font-weight: 600; font-size: 0.9rem;">
+                    {{ alert.student.name }}
+                </a>
+                <span style="font-size: 0.75rem; color: var(--text-muted);"> — {{ alert.subject }}</span>
+            </div>
+            <span style="font-weight: 700; color: var(--danger); font-size: 0.85rem;">↓ {{ alert.drop }}%</span>
+        </div>
+        <div style="font-size: 0.7rem; color: var(--text-muted);">
+            {{ alert.latest_test }}: {{ alert.latest_pct }}% (was {{ alert.prev_pct }}%)
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Parent Messages -->
+{% if unread_notices > 0 %}
+<div class="card" style="margin-bottom: var(--space-md); border-left: 3px solid var(--warning);">
+    <h2 class="card-title">📬 Parent Messages</h2>
+    {% for notice in parent_messages %}
+    <div style="padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="font-size: 0.85rem;">{{ notice.title }}</strong>
+            <span class="badge badge-{{ notice.status }}">{{ notice.get_status_display }}</span>
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">
+            {{ notice.sender.get_full_name }} {% if notice.student %}• Re: {{ notice.student.name }}{% endif %} • {{ notice.date_posted|timesince }} ago
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- My Batches -->
+<div class="card" style="margin-bottom: var(--space-md);">
+    <h2 class="card-title" style="margin-bottom: var(--space-md);">📚 My Batches</h2>
+    <div class="batch-grid">
+        {% for batch in my_batches %}
+        <div class="card" style="padding: 1rem;">
+            <h3 style="margin-bottom: 0.25rem;">{{ batch.name }}</h3>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.5rem;">
+                {{ batch.class_level }} • {{ batch.schedule }} • {{ batch.student_count }} students
+            </div>
+            <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+                <a href="{% url 'student_list' %}?batch={{ batch.pk }}" class="btn btn-outline btn-sm">👨‍🎓 Students</a>
+                <a href="{% url 'bulk_attendance' %}?batch={{ batch.pk }}" class="btn btn-outline btn-sm">📋 Attendance</a>
+                <a href="{% url 'bulk_scores' %}?batch={{ batch.pk }}" class="btn btn-outline btn-sm">📝 Scores</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Recent Scores -->
+{% if recent_scores %}
+<div class="card">
+    <h2 class="card-title" style="margin-bottom: var(--space-md);">📝 Recent Test Scores</h2>
+    <div class="table-container">
+        <table>
+            <thead><tr><th>Student</th><th>Test</th><th>Score</th><th>Date</th></tr></thead>
+            <tbody>
+                {% for score in recent_scores %}
+                <tr>
+                    <td><a href="{% url 'student_detail' score.student.pk %}">{{ score.student.name }}</a></td>
+                    <td>{{ score.test_name }}</td>
+                    <td>
+                        <span class="{% if score.percentage >= 75 %}score-high{% elif score.percentage >= 50 %}score-mid{% else %}score-low{% endif %}">
+                            {{ score.marks_obtained }}/{{ score.total_marks }} ({{ score.percentage }}%)
+                        </span>
+                    </td>
+                    <td>{{ score.date|date:"d M" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

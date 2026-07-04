@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}{{ title }} — Nurture{% endblock %}
+
+{% block extra_css %}
+<style>
+    .form-checkbox-list {
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        background: var(--bg-input);
+        padding: 0.5rem;
+    }
+    .form-checkbox-list > div, .form-checkbox-list > li {
+        margin-bottom: 0.25rem;
+        font-size: 0.85rem;
+    }
+    .form-checkbox-list label {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        cursor: pointer;
+    }
+    .form-checkbox-list input[type="checkbox"] {
+        accent-color: var(--primary);
+        width: 1rem;
+        height: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">{{ title }}</h1>
+    <a href="{% url 'student_list' %}" class="btn btn-outline btn-sm">← Back</a>
+</div>
+
+<div class="card" style="max-width: 600px;">
+    <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% for field in form %}
+        <div class="form-group">
+            <label class="form-label" for="{{ field.id_for_label }}">
+                {{ field.label }}{% if field.field.required %} *{% endif %}
+            </label>
+            {{ field }}
+            {% if field.help_text %}
+            <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">{{ field.help_text }}</div>
+            {% endif %}
+            {% if field.errors %}
+            <div style="font-size: 0.75rem; color: var(--danger); margin-top: 2px;">{{ field.errors.0 }}</div>
+            {% endif %}
+        </div>
+        {% endfor %}
+        <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+            <button type="submit" class="btn btn-primary">💾 Save Student</button>
+            <a href="{% url 'student_list' %}" class="btn btn-outline">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const classLevelSelect = document.getElementById('id_class_level');
+    const subjectsContainer = document.getElementById('id_subjects');
+    
+    // Map of subject ID to class_level code (e.g. "7th")
+    const subjectClassMap = {
+        {% for subject in form.fields.subjects.queryset %}
+        "{{ subject.id }}": "{{ subject.class_level }}",
+        {% endfor %}
+    };
+    
+    if (classLevelSelect && subjectsContainer) {
+        const checkboxes = subjectsContainer.querySelectorAll('input[type="checkbox"]');
+        
+        function filterSubjects() {
+            const selectedClass = classLevelSelect.value;
+            
+            checkboxes.forEach(cb => {
+                const wrapper = cb.closest('div') || cb.parentElement;
+                const subjectClass = subjectClassMap[cb.value];
+                
+                // Show if the subject's class matches the selected class.
+                // If no class is selected (selectedClass is ""), hide all.
+                if (selectedClass && subjectClass === selectedClass) {
+                    wrapper.style.display = '';
+                } else {
+                    wrapper.style.display = 'none';
+                    cb.checked = false;
+                }
+            });
+        }
+        
+        classLevelSelect.addEventListener('change', filterSubjects);
+        setTimeout(filterSubjects, 50);
+    }
+});
+</script>
+{% endblock %}

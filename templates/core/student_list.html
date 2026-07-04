@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Students — Nurture{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">👨‍🎓 Students</h1>
+    {% if is_admin_user %}
+    <a href="{% url 'student_create' %}" class="btn btn-primary btn-sm">+ Add Student</a>
+    {% endif %}
+</div>
+
+<form method="get" class="filter-bar">
+    <input type="text" name="search" value="{{ search }}" placeholder="🔍 Search by name..." class="form-input">
+    <select name="batch" class="form-input" onchange="this.form.submit()">
+        <option value="">All Batches</option>
+        {% for batch in batches %}
+        <option value="{{ batch.pk }}" {% if current_batch == batch.pk|stringformat:"d" %}selected{% endif %}>{{ batch.name }}</option>
+        {% endfor %}
+    </select>
+    <select name="class_level" class="form-input" onchange="this.form.submit()">
+        <option value="">All Classes</option>
+        {% for val, label in class_choices %}
+        <option value="{{ val }}" {% if current_class == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+    </select>
+</form>
+
+<div class="student-grid">
+    {% for student in students %}
+    <div class="student-card" onclick="window.location='{% url 'student_detail' student.pk %}'">
+        <div class="student-avatar">{{ student.name|first }}</div>
+        <div class="student-info">
+            <div class="student-name">{{ student.name }}</div>
+            <div class="student-meta">
+                {{ student.get_class_level_display }} • {{ student.get_board_display }}
+                {% if student.batch %}• {{ student.batch.name }}{% endif %}
+            </div>
+        </div>
+        {% if is_admin_user %}
+        <div class="student-actions" onclick="event.stopPropagation();" style="display: flex; gap: 0.25rem;">
+            <a href="{% url 'student_edit' student.pk %}" class="btn btn-outline btn-sm">✏️</a>
+            <a href="{% url 'student_delete' student.pk %}" class="btn btn-outline btn-sm" style="color: var(--danger); border-color: var(--danger);">🗑️</a>
+        </div>
+        {% endif %}
+    </div>
+    {% empty %}
+    <div class="empty-state" style="grid-column: 1 / -1;">
+        <div class="empty-icon">🔍</div>
+        <p>No students found{% if search %} matching "{{ search }}"{% endif %}</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Bulk Attendance — Nurture{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">📋 Mark Attendance</h1>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline btn-sm">← Dashboard</a>
+</div>
+
+<!-- Batch & Date Selector -->
+<div class="card" style="margin-bottom: var(--space-md);">
+    <form method="get" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;">
+        <div class="form-group" style="flex: 1; min-width: 180px; margin-bottom: 0;">
+            <label class="form-label">Select Batch</label>
+            <select name="batch" class="form-input" onchange="this.form.submit()" required>
+                <option value="">— Choose Batch —</option>
+                {% for batch in batches %}
+                <option value="{{ batch.pk }}" {% if selected_batch and selected_batch.pk == batch.pk %}selected{% endif %}>
+                    {{ batch.name }} ({{ batch.student_count }} students)
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="min-width: 160px; margin-bottom: 0;">
+            <label class="form-label">Date</label>
+            <input type="date" name="date" value="{{ selected_date|date:'Y-m-d' }}" class="form-input" onchange="this.form.submit()">
+        </div>
+    </form>
+</div>
+
+{% if selected_batch and students %}
+<!-- Quick Action Buttons -->
+<div style="display: flex; gap: 0.5rem; margin-bottom: var(--space-md); flex-wrap: wrap;">
+    <button type="button" class="btn btn-success btn-sm" onclick="markAll('present')">✓ All Present</button>
+    <button type="button" class="btn btn-danger btn-sm" onclick="markAll('absent')">✕ All Absent</button>
+    <button type="button" class="btn btn-outline btn-sm" onclick="markAll('late')">⏰ All Late</button>
+    <span style="margin-left: auto; font-size: 0.8rem; color: var(--text-muted); align-self: center;">
+        {{ selected_batch.name }} • {{ selected_date|date:"D, d M Y" }} • {{ students|length }} students
+    </span>
+</div>
+
+<form method="post" id="attendance-form">
+    {% csrf_token %}
+    <input type="hidden" name="batch_id" value="{{ selected_batch.pk }}">
+
+    <div class="attendance-grid">
+        {% for student in students %}
+        <div class="attendance-row" id="row-{{ student.pk }}">
+            <div class="att-student">
+                <div class="student-avatar" style="width:36px; height:36px; font-size:0.9rem;">{{ student.name|first }}</div>
+                <div>
+                    <div style="font-weight: 600; font-size: 0.9rem;">{{ student.name }}</div>
+                    <div style="font-size: 0.7rem; color: var(--text-muted);">{{ student.get_class_level_display }}</div>
+                </div>
+            </div>
+            <div class="att-status-group">
+                {% with current_status=existing_attendance|default_if_none:"" %}
+                <label class="att-radio present {% if student.pk in existing_attendance and existing_attendance|dictsort:student.pk == 'present' %}active{% endif %}">
+                    <input type="radio" name="status_{{ student.pk }}" value="present"
+                        {% if existing_attendance and student.pk|stringformat:"d" in existing_attendance %}
+                            {% for sid, st in existing_attendance.items %}
+                                {% if sid == student.pk and st == 'present' %}checked{% endif %}
+                            {% endfor %}
+                        {% else %}checked{% endif %}>
+                    <span class="att-btn present-btn">✓ Present</span>
+                </label>
+                <label class="att-radio absent">
+                    <input type="radio" name="status_{{ student.pk }}" value="absent"
+                        {% for sid, st in existing_attendance.items %}
+                            {% if sid == student.pk and st == 'absent' %}checked{% endif %}
+                        {% endfor %}>
+                    <span class="att-btn absent-btn">✕ Absent</span>
+                </label>
+                <label class="att-radio late">
+                    <input type="radio" name="status_{{ student.pk }}" value="late"
+                        {% for sid, st in existing_attendance.items %}
+                            {% if sid == student.pk and st == 'late' %}checked{% endif %}
+                        {% endfor %}>
+                    <span class="att-btn late-btn">⏰ Late</span>
+                </label>
+                {% endwith %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <div style="position: sticky; bottom: 4rem; padding: 1rem; background: var(--bg-secondary); border-top: 1px solid var(--border); border-radius: var(--radius-md); margin-top: var(--space-md); display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 0.85rem; color: var(--text-secondary);">
+            <span id="present-count">0</span> Present •
+            <span id="absent-count">0</span> Absent •
+            <span id="late-count">0</span> Late
+        </span>
+        <button type="submit" class="btn btn-primary">💾 Save Attendance</button>
+    </div>
+</form>
+
+{% elif selected_batch %}
+<div class="empty-state">
+    <div class="empty-icon">👻</div>
+    <p>No active students in this batch.</p>
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">📋</div>
+    <p>Select a batch and date to start marking attendance.</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .attendance-grid { display: flex; flex-direction: column; gap: 0.5rem; }
+    .attendance-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0.75rem 1rem; background: var(--bg-card); border: 1px solid var(--border);
+        border-radius: var(--radius-md); transition: var(--transition); gap: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .attendance-row:hover { border-color: var(--border-light); }
+    .att-student { display: flex; align-items: center; gap: 0.75rem; flex: 1; min-width: 160px; }
+    .att-status-group { display: flex; gap: 0.4rem; }
+    .att-radio input { display: none; }
+    .att-btn {
+        display: inline-block; padding: 0.4rem 0.75rem; border-radius: var(--radius-sm);
+        font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: var(--transition);
+        border: 1px solid var(--border);
+    }
+    .att-radio input:checked + .present-btn { background: var(--success-bg); color: var(--success); border-color: var(--success); }
+    .att-radio input:checked + .absent-btn { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); }
+    .att-radio input:checked + .late-btn { background: var(--warning-bg); color: var(--warning); border-color: var(--warning); }
+    .att-btn:hover { border-color: var(--primary); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function markAll(status) {
+    document.querySelectorAll(`input[value="${status}"]`).forEach(r => r.checked = true);
+    updateCounts();
+}
+
+function updateCounts() {
+    const p = document.querySelectorAll('input[value="present"]:checked').length;
+    const a = document.querySelectorAll('input[value="absent"]:checked').length;
+    const l = document.querySelectorAll('input[value="late"]:checked').length;
+    document.getElementById('present-count').textContent = p;
+    document.getElementById('absent-count').textContent = a;
+    document.getElementById('late-count').textContent = l;
+}
+
+document.querySelectorAll('.att-radio input').forEach(r => r.addEventListener('change', updateCounts));
+document.addEventListener('DOMContentLoaded', updateCounts);
+</script>
+{% endblock %}

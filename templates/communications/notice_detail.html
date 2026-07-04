@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}{{ notice.title }} — Nurture{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <a href="{% url 'notice_list' %}" class="btn btn-outline btn-sm">← Back</a>
+</div>
+
+<div class="card" style="max-width: 800px; margin: 0 auto;">
+    <div style="border-bottom: 1px solid var(--border); padding-bottom: 1rem; margin-bottom: 1.5rem;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+            <h1 style="font-size: 1.25rem; font-weight: 700;">{{ notice.title }}</h1>
+            <span class="badge badge-{{ notice.status }}">{{ notice.get_status_display }}</span>
+        </div>
+        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+            <strong>From:</strong> {{ notice.sender.get_full_name }} ({{ notice.get_sender_type_display }})<br>
+            <strong>Date:</strong> {{ notice.date_posted|date:"l, d F Y, h:i A" }}<br>
+            {% if notice.student %}<strong>Student:</strong> {{ notice.student.name }}<br>{% endif %}
+            <strong>Type:</strong> {{ notice.get_notice_type_display }}
+        </div>
+    </div>
+    
+    <div style="font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap; margin-bottom: 2rem;">{{ notice.message }}</div>
+    
+    <!-- Teacher Reply Section -->
+    {% if notice.teacher_reply %}
+    <div style="background: var(--bg-secondary); border-left: 3px solid var(--primary); padding: 1rem; border-radius: 0 var(--radius-md) var(--radius-md) 0; margin-bottom: 1.5rem;">
+        <div style="font-size: 0.75rem; font-weight: 700; color: var(--primary); text-transform: uppercase; margin-bottom: 0.5rem;">Teacher Reply</div>
+        <div style="font-size: 0.9rem; line-height: 1.5; white-space: pre-wrap;">{{ notice.teacher_reply }}</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.5rem;">{{ notice.reply_date|date:"d M Y, h:i A" }}</div>
+    </div>
+    {% elif is_admin_user or is_teacher %}
+        {% if notice.sender_type == 'parent' %}
+        <div style="border-top: 1px solid var(--border); padding-top: 1.5rem;">
+            <h3 style="font-size: 1rem; margin-bottom: 1rem;">Reply to Parent</h3>
+            <form method="post">
+                {% csrf_token %}
+                <div class="form-group">
+                    <textarea name="reply" class="form-input" rows="4" placeholder="Write your reply here. This will be sent back to the parent and optionally via WhatsApp..." required></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Send Reply</button>
+            </form>
+        </div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

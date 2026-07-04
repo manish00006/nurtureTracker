@@ -1,0 +1,351 @@
+{% extends "base.html" %}
+{% block title %}{{ student.name }} — Nurture{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chart-card { position: relative; min-height: 280px; }
+    .chart-canvas { max-height: 260px; }
+    .attendance-calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+    .cal-day {
+        aspect-ratio: 1; border-radius: 4px; display: flex; align-items: center;
+        justify-content: center; font-size: 0.6rem; font-weight: 600; position: relative;
+    }
+    .cal-day.present { background: var(--success-bg); color: var(--success); }
+    .cal-day.absent { background: var(--danger-bg); color: var(--danger); }
+    .cal-day.late { background: var(--warning-bg); color: var(--warning); }
+    .cal-day.empty { background: transparent; }
+    .cal-header { font-size: 0.6rem; color: var(--text-muted); text-align: center; padding: 2px; font-weight: 600; }
+    .tab-nav { display: flex; gap: 0; border-bottom: 1px solid var(--border); margin-bottom: var(--space-md); overflow-x: auto; }
+    .tab-btn {
+        padding: 0.6rem 1rem; font-size: 0.8rem; font-weight: 600; color: var(--text-muted);
+        border: none; background: none; cursor: pointer; border-bottom: 2px solid transparent;
+        white-space: nowrap; transition: var(--transition); font-family: 'Inter', sans-serif;
+    }
+    .tab-btn.active { color: var(--primary-light); border-bottom-color: var(--primary); }
+    .tab-btn:hover { color: var(--text-primary); }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; animation: slideIn 0.3s ease; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <a href="{% if is_parent %}{% url 'dashboard' %}{% else %}{% url 'student_list' %}{% endif %}" class="btn btn-outline btn-sm">← Back</a>
+    {% if is_admin_user %}
+    <a href="{% url 'student_edit' student.pk %}" class="btn btn-primary btn-sm">✏️ Edit</a>
+    {% endif %}
+</div>
+
+<!-- Student Header -->
+<div class="detail-header" style="margin-bottom: var(--space-lg);">
+    {% if student.photo %}
+    <img src="{{ student.photo.url }}" alt="{{ student.name }}" style="width:72px; height:72px; border-radius:50%; object-fit:cover;">
+    {% else %}
+    <div class="detail-avatar">{{ student.name|first }}</div>
+    {% endif %}
+    <div style="flex: 1;">
+        <h1 style="font-size: 1.5rem; margin-bottom: 4px;">{{ student.name }}</h1>
+        <div style="font-size: 0.85rem; color: var(--text-muted);">
+            {{ student.get_class_level_display }} • {{ student.get_board_display }}
+            {% if student.batch %}• {{ student.batch.name }}{% endif %}
+        </div>
+        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">
+            Enrolled: {{ student.enrollment_date|date:"d M Y" }}
+            {% if student.parent %}• Parent: {{ student.parent.get_full_name }}{% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="stat-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: var(--space-md);">
+    <div class="stat-card">
+        <div class="stat-icon {% if attendance_pct and attendance_pct >= 75 %}green{% elif attendance_pct and attendance_pct >= 50 %}amber{% else %}red{% endif %}">📅</div>
+        <div>
+            <div class="stat-value" style="font-size: 1.25rem;">{% if attendance_pct is not None %}{{ attendance_pct }}%{% else %}—{% endif %}</div>
+            <div class="stat-label">Attendance</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon blue">📝</div>
+        <div>
+            <div class="stat-value" style="font-size: 1.25rem;">{{ recent_scores|length }}</div>
+            <div class="stat-label">Tests</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon purple">📖</div>
+        <div>
+            <div class="stat-value" style="font-size: 1.25rem;">{{ pending_homework|length }}</div>
+            <div class="stat-label">Pending HW</div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabbed Content -->
+<div class="tab-nav">
+    <button class="tab-btn active" onclick="showTab('attendance')">📅 Attendance</button>
+    <button class="tab-btn" onclick="showTab('scores')">📝 Scores</button>
+    <button class="tab-btn" onclick="showTab('mastery')">🎯 Mastery</button>
+    <button class="tab-btn" onclick="showTab('homework')">📖 Homework</button>
+</div>
+
+<!-- Tab: Attendance -->
+<div class="tab-content active" id="tab-attendance">
+    <div class="detail-grid">
+        <div class="card">
+            <h3 class="card-title" style="margin-bottom: var(--space-md);">📅 Attendance Calendar</h3>
+            {% if attendance_pct is not None %}
+            <div style="text-align:center; margin-bottom: 1rem;">
+                <div style="font-size: 2.5rem; font-weight: 800; font-family: Outfit; {% if attendance_pct >= 75 %}color:var(--success){% elif attendance_pct >= 50 %}color:var(--warning){% else %}color:var(--danger){% endif %}">
+                    {{ attendance_pct }}%
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-muted);">{{ present_days }}/{{ total_days }} days present in {% now "F" %}</div>
+            </div>
+            {% endif %}
+            <div id="attendance-calendar"></div>
+        </div>
+        <div class="card">
+            <h3 class="card-title" style="margin-bottom: var(--space-md);">Recent Records</h3>
+            {% for att in recent_attendance|slice:":15" %}
+            <div style="display:flex; justify-content:space-between; padding:0.35rem 0; border-bottom:1px solid var(--border); font-size:0.8rem;">
+                <span>{{ att.date|date:"D, d M" }}</span>
+                <span class="badge badge-{{ att.status }}">{{ att.get_status_display }}</span>
+            </div>
+            {% empty %}
+            <div class="empty-state" style="padding: 1rem;"><p style="font-size: 0.8rem;">No records yet</p></div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Scores -->
+<div class="tab-content" id="tab-scores">
+    <div class="detail-grid">
+        <div class="card chart-card">
+            <h3 class="card-title" style="margin-bottom: var(--space-sm);">📈 Score Trends</h3>
+            <canvas id="scoreChart" class="chart-canvas"></canvas>
+        </div>
+        <div class="card">
+            <h3 class="card-title" style="margin-bottom: var(--space-md);">All Scores</h3>
+            {% for score in recent_scores %}
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:0.5rem 0; border-bottom:1px solid var(--border);">
+                <div>
+                    <div style="font-size:0.85rem; font-weight:600;">{{ score.test_name }}</div>
+                    <div style="font-size:0.7rem; color:var(--text-muted);">{{ score.subject.name }} • {{ score.date|date:"d M" }} • {{ score.get_test_type_display }}</div>
+                </div>
+                <div style="text-align:right;">
+                    <div style="font-weight:700; {% if score.percentage >= 75 %}color:var(--success){% elif score.percentage >= 50 %}color:var(--warning){% else %}color:var(--danger){% endif %}">{{ score.percentage }}%</div>
+                    <div style="font-size:0.7rem; color:var(--text-muted);">{{ score.marks_obtained }}/{{ score.total_marks }}</div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="empty-state" style="padding: 1rem;"><p style="font-size: 0.8rem;">No test scores yet</p></div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Mastery -->
+<div class="tab-content" id="tab-mastery">
+    <div class="detail-grid">
+        <div class="card chart-card">
+            <h3 class="card-title" style="margin-bottom: var(--space-sm);">🎯 Mastery Overview</h3>
+            <canvas id="masteryChart" class="chart-canvas"></canvas>
+        </div>
+        <div class="card">
+            <h3 class="card-title" style="margin-bottom: var(--space-md);">Concept Details</h3>
+            {% for m in mastery %}
+            <div style="display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0; border-bottom:1px solid var(--border);">
+                <div>
+                    <div style="font-size:0.85rem;">{{ m.concept.name }}</div>
+                    <div style="font-size:0.7rem; color:var(--text-muted);">{{ m.concept.subject.name }}</div>
+                </div>
+                <span class="badge badge-{{ m.status }}">{{ m.get_status_display }}</span>
+            </div>
+            {% empty %}
+            <div class="empty-state" style="padding: 1rem;"><p style="font-size: 0.8rem;">No concepts tracked</p></div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<!-- Tab: Homework -->
+<div class="tab-content" id="tab-homework">
+    <div class="card">
+        <h3 class="card-title" style="margin-bottom: var(--space-md);">📖 Homework</h3>
+        {% for hw in pending_homework %}
+        <div style="padding:0.5rem 0; border-bottom:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between;">
+                <strong style="font-size:0.85rem;">{{ hw.subject.name }}</strong>
+                <span class="badge badge-{{ hw.status }}">{{ hw.get_status_display }}</span>
+            </div>
+            <div style="font-size:0.8rem; color:var(--text-secondary); margin-top:2px;">{{ hw.description|truncatewords:20 }}</div>
+            <div style="font-size:0.7rem; color:var(--text-muted); margin-top:2px;">Due: {{ hw.due_date|date:"d M Y" }}</div>
+        </div>
+        {% empty %}
+        <div class="empty-state" style="padding: 1rem;"><p style="font-size: 0.8rem;">No pending homework 🎉</p></div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script>
+// ─── Tab switching ─────────────────────
+function showTab(name) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.target.classList.add('active');
+}
+
+// ─── Load progress data ───────────────
+fetch('/api/student/{{ student.pk }}/progress/')
+    .then(r => r.json())
+    .then(data => {
+        renderAttendanceCalendar(data.attendance);
+        renderScoreChart(data.score_trends);
+        renderMasteryChart(data.mastery_summary);
+    })
+    .catch(err => console.error('Failed to load progress data:', err));
+
+// ─── Attendance Calendar ──────────────
+function renderAttendanceCalendar(attData) {
+    const container = document.getElementById('attendance-calendar');
+    if (!container || !attData.length) return;
+
+    const days = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+    let html = '<div class="attendance-calendar">';
+
+    // Day headers
+    days.forEach(d => html += `<div class="cal-header">${d}</div>`);
+
+    // Build date map
+    const dateMap = {};
+    attData.forEach(a => dateMap[a.date] = a.status);
+
+    // Get current month range (local time)
+    const today = new Date();
+    const currentMonth = today.getMonth();
+    
+    const firstDay = new Date(today.getFullYear(), currentMonth, 1);
+    const start = new Date(firstDay);
+    start.setDate(start.getDate() - start.getDay()); // align to Sunday
+
+    const lastDay = new Date(today.getFullYear(), currentMonth + 1, 0);
+    const end = new Date(lastDay);
+    end.setDate(end.getDate() + (6 - end.getDay())); // align to Saturday
+
+    // Format helper to YYYY-MM-DD local time
+    const formatDate = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${day}`;
+    };
+
+    let current = new Date(start);
+    while (current <= end) {
+        const dateStr = formatDate(current);
+        const status = dateMap[dateStr] || '';
+        const dayNum = current.getDate();
+        const isCurrentMonth = current.getMonth() === currentMonth;
+
+        if (!isCurrentMonth) {
+            html += `<div class="cal-day empty" style="opacity:0.2">${dayNum}</div>`;
+        } else if (status) {
+            html += `<div class="cal-day ${status}" title="${dateStr}: ${status}">${dayNum}</div>`;
+        } else {
+            html += `<div class="cal-day empty" style="opacity:0.4; border: 1px solid var(--border);">${dayNum}</div>`;
+        }
+        current.setDate(current.getDate() + 1);
+    }
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// ─── Score Trend Chart ────────────────
+function renderScoreChart(scoreTrends) {
+    const ctx = document.getElementById('scoreChart');
+    if (!ctx) return;
+
+    const colors = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#3b82f6', '#8b5cf6'];
+    const datasets = [];
+    let colorIdx = 0;
+
+    for (const [subject, scores] of Object.entries(scoreTrends)) {
+        const color = colors[colorIdx % colors.length];
+        datasets.push({
+            label: subject,
+            data: scores.map(s => ({ x: s.date, y: s.percentage })),
+            borderColor: color,
+            backgroundColor: color + '20',
+            tension: 0.3,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            borderWidth: 2,
+            fill: false,
+        });
+        colorIdx++;
+    }
+
+    new Chart(ctx, {
+        type: 'line',
+        data: { datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } },
+                tooltip: {
+                    backgroundColor: '#1e2235',
+                    borderColor: '#2d3348',
+                    borderWidth: 1,
+                    titleColor: '#f1f5f9',
+                    bodyColor: '#94a3b8',
+                }
+            },
+            scales: {
+                x: { type: 'category', grid: { color: '#2d334830' }, ticks: { color: '#64748b', font: { size: 10 }, maxRotation: 45 } },
+                y: { min: 0, max: 100, grid: { color: '#2d334830' }, ticks: { color: '#64748b', callback: v => v + '%' } }
+            }
+        }
+    });
+}
+
+// ─── Mastery Donut Chart ──────────────
+function renderMasteryChart(masterySummary) {
+    const ctx = document.getElementById('masteryChart');
+    if (!ctx) return;
+
+    let mastered = 0, needsWork = 0, notStarted = 0;
+    for (const counts of Object.values(masterySummary)) {
+        mastered += counts.mastered || 0;
+        needsWork += counts.needs_work || 0;
+        notStarted += counts.not_started || 0;
+    }
+
+    new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Mastered', 'Needs Work', 'Not Started'],
+            datasets: [{
+                data: [mastered, needsWork, notStarted],
+                backgroundColor: ['#10b981', '#f59e0b', '#ef4444'],
+                borderColor: '#1e2235',
+                borderWidth: 3,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 }, padding: 16 } }
+            },
+            cutout: '65%',
+        }
+    });
+}
+</script>
+{% endblock %}

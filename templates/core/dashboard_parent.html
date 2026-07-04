@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}My Dashboard — Nurture{% endblock %}
+
+{% block content %}
+<div class="welcome-section">
+    <h1 class="welcome-title">👋 Hi, {{ user.first_name|default:"Parent" }}</h1>
+    <p class="welcome-subtitle">{{ today|date:"l, d F Y" }}</p>
+</div>
+
+{% for data in children_data %}
+<div style="margin-bottom: var(--space-xl);">
+    <!-- Child Header -->
+    <div class="detail-header" style="margin-bottom: var(--space-md);">
+        <div class="detail-avatar">{{ data.student.name|first }}</div>
+        <div>
+            <h2 style="margin-bottom: 2px;">{{ data.student.name }}</h2>
+            <div style="font-size: 0.8rem; color: var(--text-muted);">
+                {{ data.student.get_class_level_display }} • {{ data.student.get_board_display }}
+                {% if data.student.batch %}• {{ data.student.batch.name }}{% endif %}
+            </div>
+        </div>
+        <a href="{% url 'student_detail' data.student.pk %}" class="btn btn-outline btn-sm" style="margin-left: auto;">Full Profile →</a>
+    </div>
+
+    <!-- Today's Status -->
+    <div class="stat-grid" style="grid-template-columns: repeat(3, 1fr);">
+        <div class="stat-card">
+            <div class="stat-icon {% if data.today_attendance.status == 'present' %}green{% elif data.today_attendance %}red{% else %}amber{% endif %}">
+                {% if data.today_attendance.status == 'present' %}✓{% elif data.today_attendance.status == 'absent' %}✕{% else %}—{% endif %}
+            </div>
+            <div>
+                <div class="stat-value" style="font-size: 1rem;">
+                    {% if data.today_attendance %}{{ data.today_attendance.get_status_display }}{% else %}Not Marked{% endif %}
+                </div>
+                <div class="stat-label">Today</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon blue">📊</div>
+            <div>
+                <div class="stat-value" style="font-size: 1rem;">{% if data.attendance_pct is not None %}{{ data.attendance_pct }}%{% else %}—{% endif %}</div>
+                <div class="stat-label">Month Attend.</div>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon purple">📝</div>
+            <div>
+                <div class="stat-value" style="font-size: 1rem;">{{ data.latest_scores.count }}</div>
+                <div class="stat-label">Recent Tests</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Latest Scores -->
+    {% if data.latest_scores %}
+    <div class="card" style="margin-bottom: var(--space-md);">
+        <h3 class="card-title" style="margin-bottom: var(--space-sm);">📝 Latest Test Scores</h3>
+        {% for score in data.latest_scores %}
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+            <div>
+                <div style="font-size: 0.85rem; font-weight: 600;">{{ score.test_name }}</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted);">{{ score.subject.name }} • {{ score.date|date:"d M" }}</div>
+            </div>
+            <span class="{% if score.percentage >= 75 %}score-high{% elif score.percentage >= 50 %}score-mid{% else %}score-low{% endif %}" style="font-weight: 700;">
+                {{ score.percentage }}%
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Today's Homework -->
+    {% if data.today_homework %}
+    <div class="card" style="margin-bottom: var(--space-md);">
+        <h3 class="card-title" style="margin-bottom: var(--space-sm);">📖 Upcoming Homework</h3>
+        {% for hw in data.today_homework %}
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+            <div>
+                <div style="font-size: 0.85rem;">{{ hw.subject.name }}: {{ hw.description|truncatewords:12 }}</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted);">Due: {{ hw.due_date|date:"d M" }}</div>
+            </div>
+            <span class="badge badge-{{ hw.status }}">{{ hw.get_status_display }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% empty %}
+<div class="empty-state">
+    <div class="empty-icon">👶</div>
+    <p>No students linked to your account yet. Please contact the admin.</p>
+</div>
+{% endfor %}
+
+<!-- Recent Notices -->
+{% if recent_notices %}
+<div class="card" id="notices">
+    <h2 class="card-title" style="margin-bottom: var(--space-md);">📢 Recent Notices</h2>
+    {% for notice in recent_notices %}
+    <div style="padding: 0.5rem 0; border-bottom: 1px solid var(--border);">
+        <div style="display: flex; justify-content: space-between;">
+            <strong style="font-size: 0.85rem;">{{ notice.title }}</strong>
+            <span class="badge badge-assigned">{{ notice.get_notice_type_display }}</span>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 2px;">{{ notice.message|truncatewords:20 }}</div>
+        <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">{{ notice.date_posted|timesince }} ago</div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

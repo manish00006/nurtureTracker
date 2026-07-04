@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Concept Mastery — Nurture{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">🎯 Concept Mastery</h1>
+    <a href="{% url 'dashboard' %}" class="btn btn-outline btn-sm">← Dashboard</a>
+</div>
+
+<!-- Batch & Subject Selector -->
+<div class="card" style="margin-bottom: var(--space-md);">
+    <form method="get" style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: flex-end;">
+        <div class="form-group" style="flex: 1; min-width: 180px; margin-bottom: 0;">
+            <label class="form-label">Batch</label>
+            <select name="batch" class="form-input" onchange="this.form.submit()">
+                <option value="">— Choose Batch —</option>
+                {% for batch in batches %}
+                <option value="{{ batch.pk }}" {% if selected_batch and selected_batch.pk == batch.pk %}selected{% endif %}>{{ batch.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group" style="flex: 1; min-width: 180px; margin-bottom: 0;">
+            <label class="form-label">Subject</label>
+            <select name="subject" class="form-input" onchange="this.form.submit()">
+                <option value="">— Choose Subject —</option>
+                {% for subj in subjects %}
+                <option value="{{ subj.pk }}" {% if selected_subject and selected_subject.pk == subj.pk %}selected{% endif %}>{{ subj }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+</div>
+
+{% if selected_batch and selected_subject and concepts and students %}
+<form method="post">
+    {% csrf_token %}
+    <input type="hidden" name="batch_id" value="{{ selected_batch.pk }}">
+    <input type="hidden" name="subject_id" value="{{ selected_subject.pk }}">
+
+    <!-- Mastery Legend -->
+    <div style="display: flex; gap: 1rem; margin-bottom: var(--space-md); font-size: 0.75rem; flex-wrap: wrap;">
+        <span><span class="mastery-dot mastered"></span> Mastered</span>
+        <span><span class="mastery-dot needs-work"></span> Needs Work</span>
+        <span><span class="mastery-dot not-started"></span> Not Started</span>
+    </div>
+
+    <!-- Mastery Matrix -->
+    <div class="mastery-table-container">
+        <table class="mastery-table">
+            <thead>
+                <tr>
+                    <th class="sticky-col">Student</th>
+                    {% for concept in concepts %}
+                    <th>
+                        <div class="concept-header">
+                            {% if concept.chapter_number %}Ch.{{ concept.chapter_number }}{% endif %}
+                            <span class="concept-name">{{ concept.name }}</span>
+                        </div>
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for student in students %}
+                <tr>
+                    <td class="sticky-col">
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <div class="student-avatar" style="width:28px; height:28px; font-size:0.7rem;">{{ student.name|first }}</div>
+                            <span style="font-size: 0.8rem; font-weight: 600;">{{ student.name }}</span>
+                        </div>
+                    </td>
+                    {% for concept in concepts %}
+                    <td class="mastery-cell">
+                        <select name="mastery_{{ student.pk }}_{{ concept.pk }}" class="mastery-select"
+                                onchange="updateMasteryColor(this)">
+                            {% for val, label in mastery_statuses %}
+                            <option value="{{ val }}"
+                                {% with key=student.pk|stringformat:"d" %}
+                                {% endwith %}
+                                {% for sid_cid, status in mastery_map.items %}
+                                    {% if sid_cid.0 == student.pk and sid_cid.1 == concept.pk and status == val %}selected{% endif %}
+                                {% endfor %}
+                            >{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div style="position: sticky; bottom: 4rem; padding: 1rem; background: var(--bg-secondary); border-top: 1px solid var(--border); border-radius: var(--radius-md); margin-top: var(--space-md); text-align: right;">
+        <button type="submit" class="btn btn-primary">💾 Save Mastery</button>
+    </div>
+</form>
+
+{% elif selected_batch and selected_subject %}
+<div class="empty-state"><div class="empty-icon">📭</div><p>No concepts found for this subject. Add concepts via Admin panel.</p></div>
+{% else %}
+<div class="empty-state"><div class="empty-icon">🎯</div><p>Select a batch and subject to manage concept mastery.</p></div>
+{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    .mastery-table-container { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-md); }
+    .mastery-table { width: max-content; min-width: 100%; border-collapse: collapse; }
+    .mastery-table th, .mastery-table td { padding: 0.5rem 0.75rem; border: 1px solid var(--border); }
+    .mastery-table th { background: var(--bg-secondary); position: sticky; top: 0; z-index: 2; }
+    .sticky-col { position: sticky; left: 0; z-index: 3; background: var(--bg-card); min-width: 160px; }
+    .mastery-table thead .sticky-col { z-index: 4; background: var(--bg-secondary); }
+    .concept-header { font-size: 0.7rem; text-align: center; min-width: 90px; }
+    .concept-name { display: block; font-weight: 600; }
+    .mastery-cell { text-align: center; }
+    .mastery-select {
+        padding: 0.3rem 0.4rem; border-radius: var(--radius-sm); font-size: 0.7rem;
+        font-weight: 600; border: 1px solid var(--border); cursor: pointer;
+        background: var(--bg-input); color: var(--text-primary);
+    }
+    .mastery-select.mastered { background: var(--success-bg); color: var(--success); border-color: var(--success); }
+    .mastery-select.needs_work { background: var(--warning-bg); color: var(--warning); border-color: var(--warning); }
+    .mastery-select.not_started { background: var(--danger-bg); color: var(--danger); border-color: var(--danger); }
+    .mastery-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 4px; }
+    .mastery-dot.mastered { background: var(--success); }
+    .mastery-dot.needs-work { background: var(--warning); }
+    .mastery-dot.not-started { background: var(--danger); }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateMasteryColor(select) {
+    select.className = 'mastery-select ' + select.value;
+}
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.mastery-select').forEach(s => updateMasteryColor(s));
+});
+</script>
+{% endblock %}

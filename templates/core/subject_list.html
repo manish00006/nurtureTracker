@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Subjects — Nurture{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">📖 Subjects</h1>
+    <a href="{% url 'subject_create' %}" class="btn btn-primary btn-sm">+ Add Subject</a>
+</div>
+
+<div class="table-container">
+    <table>
+        <thead>
+            <tr><th>Subject</th><th>Class</th><th>Board</th><th>Concepts</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+            {% for subject in subjects %}
+            <tr>
+                <td style="font-weight: 600;">{{ subject.name }}</td>
+                <td>{{ subject.get_class_level_display|default:"—" }}</td>
+                <td>{{ subject.get_board_display|default:"—" }}</td>
+                <td>{{ subject.concepts.count }}</td>
+                <td><span class="badge {% if subject.is_active %}badge-present{% else %}badge-absent{% endif %}">{{ subject.is_active|yesno:"Active,Inactive" }}</span></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" style="text-align: center; padding: 2rem; color: var(--text-muted);">No subjects added yet.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

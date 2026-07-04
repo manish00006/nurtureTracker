@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}Notices — Nurture{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">💬 Notices & Messages</h1>
+    <a href="{% url 'notice_create' %}" class="btn btn-primary btn-sm">+ New Message</a>
+</div>
+
+<!-- Type Filter -->
+<div class="filter-bar">
+    <a href="{% url 'notice_list' %}" class="btn btn-sm {% if not current_type %}btn-primary{% else %}btn-outline{% endif %}">All</a>
+    {% for val, label in types %}
+    <a href="{% url 'notice_list' %}?type={{ val }}" class="btn btn-sm {% if current_type == val %}btn-primary{% else %}btn-outline{% endif %}">{{ label }}</a>
+    {% endfor %}
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 0.75rem;">
+    {% for notice in notices %}
+    <a href="{% url 'notice_detail' notice.pk %}" class="card" style="padding: 1rem; display: block; text-decoration: none; color: inherit; border-left: 3px solid {% if notice.sender_type == 'parent' %}var(--warning){% elif notice.is_pinned %}var(--danger){% else %}var(--primary){% endif %};">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
+            <div style="font-weight: 600; font-size: 1rem;">
+                {% if notice.is_pinned %}📌 {% endif %}{{ notice.title }}
+            </div>
+            <span class="badge {% if notice.status == 'sent' and notice.sender_type != user.role %}badge-pending{% else %}badge-{{ notice.status }}{% endif %}">
+                {% if notice.status == 'sent' and notice.sender_type != user.role %}New{% else %}{{ notice.get_status_display }}{% endif %}
+            </span>
+        </div>
+        
+        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.5rem; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
+            {{ notice.message }}
+        </div>
+        
+        <div style="font-size: 0.75rem; color: var(--text-muted); display: flex; justify-content: space-between;">
+            <span>
+                {% if notice.sender == user %}You{% else %}{{ notice.sender.get_full_name }}{% endif %} 
+                • {{ notice.get_notice_type_display }}
+                {% if notice.student %} • Re: {{ notice.student.name }}{% endif %}
+            </span>
+            <span>{{ notice.date_posted|date:"d M Y, H:i" }}</span>
+        </div>
+    </a>
+    {% empty %}
+    <div class="empty-state">
+        <div class="empty-icon">📭</div>
+        <p>No messages found.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

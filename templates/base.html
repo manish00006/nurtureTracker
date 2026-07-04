@@ -1,0 +1,89 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Nurture Coaching Class — Track your child's academic progress in real time">
+    <title>{% block title %}Nurture Coaching Class{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="app-container">
+        {% if user.is_authenticated %}
+        <!-- Top Navbar -->
+        <nav class="navbar">
+            <a href="{% url 'dashboard' %}" class="navbar-brand">
+                <div class="logo-icon">🌱</div>
+                <span class="brand-text">Nurture</span>
+            </a>
+            <div class="navbar-user">
+                <span class="user-name">{{ user.first_name|default:user.username }}</span>
+                <span class="role-badge {{ user.role }}">{{ user.get_role_display }}</span>
+                <a href="{% url 'logout' %}" class="btn btn-outline btn-sm">Logout</a>
+            </div>
+        </nav>
+        {% endif %}
+
+        <!-- Messages -->
+        {% if messages %}
+        <div style="padding: 0.5rem 1rem;">
+            <ul class="messages">
+                {% for message in messages %}
+                <li class="message {{ message.tags }}">
+                    {% if message.tags == 'success' %}✓{% elif message.tags == 'error' %}✕{% elif message.tags == 'warning' %}⚠{% else %}ℹ{% endif %}
+                    {{ message }}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Main Content -->
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+
+        {% if user.is_authenticated %}
+        <!-- Bottom Navigation -->
+        <nav class="bottom-nav">
+            <a href="{% url 'dashboard' %}" class="{% if request.resolver_match.url_name == 'dashboard' or request.resolver_match.url_name == 'home' %}active{% endif %}">
+                <span class="nav-icon">🏠</span>
+                Home
+            </a>
+            {% if is_admin_user or is_teacher %}
+            <a href="{% url 'bulk_attendance' %}" class="{% if request.resolver_match.url_name == 'bulk_attendance' %}active{% endif %}">
+                <span class="nav-icon">📋</span>
+                Attendance
+            </a>
+            <a href="{% url 'bulk_scores' %}" class="{% if request.resolver_match.url_name == 'bulk_scores' %}active{% endif %}">
+                <span class="nav-icon">📝</span>
+                Scores
+            </a>
+            <a href="{% url 'homework_manage' %}" class="{% if 'homework' in request.resolver_match.url_name %}active{% endif %}">
+                <span class="nav-icon">📖</span>
+                Homework
+            </a>
+            {% endif %}
+            {% if is_parent %}
+            <a href="{% url 'dashboard' %}#progress" class="{% if request.resolver_match.url_name == 'student_detail' %}active{% endif %}">
+                <span class="nav-icon">📊</span>
+                Progress
+            </a>
+            <a href="{% url 'notice_list' %}" class="{% if request.resolver_match.url_name == 'notice_list' or request.resolver_match.url_name == 'notice_create' or request.resolver_match.url_name == 'notice_detail' %}active{% endif %}">
+                <span class="nav-icon">💬</span>
+                Notices
+            </a>
+            <a href="{% url 'ai_assistant' %}" class="{% if request.resolver_match.url_name == 'ai_assistant' %}active{% endif %}">
+                <span class="nav-icon">🤖</span>
+                Assistant
+            </a>
+            {% endif %}
+        </nav>
+        {% endif %}
+    </div>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Homework — Nurture{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">📖 Homework</h1>
+    <a href="{% url 'homework_create' %}" class="btn btn-primary btn-sm">+ Assign New</a>
+</div>
+
+<!-- Status Filter -->
+<div class="filter-bar">
+    <a href="{% url 'homework_manage' %}" class="btn btn-sm {% if not status_filter %}btn-primary{% else %}btn-outline{% endif %}">All</a>
+    <a href="{% url 'homework_manage' %}?status=assigned" class="btn btn-sm {% if status_filter == 'assigned' %}btn-primary{% else %}btn-outline{% endif %}">Assigned</a>
+    <a href="{% url 'homework_manage' %}?status=pending" class="btn btn-sm {% if status_filter == 'pending' %}btn-primary{% else %}btn-outline{% endif %}">Pending</a>
+    <a href="{% url 'homework_manage' %}?status=submitted" class="btn btn-sm {% if status_filter == 'submitted' %}btn-primary{% else %}btn-outline{% endif %}">Submitted</a>
+    <a href="{% url 'homework_manage' %}?status=late" class="btn btn-sm {% if status_filter == 'late' %}btn-primary{% else %}btn-outline{% endif %}">Late</a>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 0.5rem;">
+    {% for hw in homework_list %}
+    <div class="card" style="padding: 1rem;" id="hw-{{ hw.pk }}">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem;">
+            <div style="flex: 1; min-width: 200px;">
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                    <strong style="font-size: 0.9rem;">{{ hw.subject.name }}</strong>
+                    <span class="badge badge-{{ hw.status }}">{{ hw.get_status_display }}</span>
+                </div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary);">{{ hw.description }}</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 0.25rem;">
+                    {% if hw.batch %}Batch: {{ hw.batch.name }}{% endif %}
+                    {% if hw.student %}Student: {{ hw.student.name }}{% endif %}
+                    • Due: {{ hw.due_date|date:"d M Y" }}
+                    {% if hw.assigned_by %}• By: {{ hw.assigned_by.get_full_name }}{% endif %}
+                </div>
+            </div>
+            <div style="display: flex; gap: 0.25rem;">
+                <select class="form-input" style="width: auto; font-size: 0.75rem; padding: 0.3rem 0.5rem;"
+                        onchange="updateHWStatus({{ hw.pk }}, this.value)">
+                    <option value="assigned" {% if hw.status == 'assigned' %}selected{% endif %}>Assigned</option>
+                    <option value="submitted" {% if hw.status == 'submitted' %}selected{% endif %}>Submitted</option>
+                    <option value="pending" {% if hw.status == 'pending' %}selected{% endif %}>Pending</option>
+                    <option value="late" {% if hw.status == 'late' %}selected{% endif %}>Late</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state"><div class="empty-icon">📭</div><p>No homework found.</p></div>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateHWStatus(pk, status) {
+    fetch(`/homework/${pk}/status/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+                           document.cookie.match(/csrftoken=([^;]+)/)?.[1] || ''
+        },
+        body: `status=${status}`
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            const card = document.getElementById(`hw-${pk}`);
+            const badge = card.querySelector('.badge');
+            badge.className = `badge badge-${status}`;
+            badge.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        }
+    });
+}
+</script>
+{% endblock %}

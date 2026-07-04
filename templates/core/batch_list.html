@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Batches — Nurture{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">📚 Batches</h1>
+    <a href="{% url 'batch_create' %}" class="btn btn-primary btn-sm">+ New Batch</a>
+</div>
+
+<div class="batch-grid">
+    {% for batch in batches %}
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">{{ batch.name }}</h3>
+            <span class="badge {% if batch.is_active %}badge-present{% else %}badge-absent{% endif %}">
+                {{ batch.is_active|yesno:"Active,Inactive" }}
+            </span>
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+            {% if batch.class_level %}📋 {{ batch.class_level }}{% endif %}
+            {% if batch.schedule %}• ⏰ {{ batch.schedule }}{% endif %}
+        </div>
+        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+            👩‍🏫 {{ batch.teacher.get_full_name|default:"Not assigned" }} • 👨‍🎓 {{ batch.student_count }} students
+        </div>
+        <div style="display: flex; gap: 0.5rem;">
+            <a href="{% url 'student_list' %}?batch={{ batch.pk }}" class="btn btn-outline btn-sm">View Students</a>
+            <a href="{% url 'batch_edit' batch.pk %}" class="btn btn-outline btn-sm">✏️ Edit</a>
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state" style="grid-column: 1/-1;"><div class="empty-icon">📭</div><p>No batches created yet.</p></div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Users — Nurture{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">👥 Users</h1>
+    <a href="{% url 'user_create' %}" class="btn btn-primary btn-sm">+ Add User</a>
+</div>
+
+<div class="filter-bar" style="margin-bottom: var(--space-md);">
+    <a href="{% url 'user_list' %}" class="btn btn-sm {% if not current_role %}btn-primary{% else %}btn-outline{% endif %}">All</a>
+    <a href="{% url 'user_list' %}?role=teacher" class="btn btn-sm {% if current_role == 'teacher' %}btn-primary{% else %}btn-outline{% endif %}">Teachers</a>
+    <a href="{% url 'user_list' %}?role=parent" class="btn btn-sm {% if current_role == 'parent' %}btn-primary{% else %}btn-outline{% endif %}">Parents</a>
+</div>
+
+<div class="user-grid">
+    {% for u in users %}
+    <div class="user-card">
+        <div class="user-avatar" style="background: linear-gradient(135deg, {% if u.role == 'teacher' %}var(--success), #059669{% elif u.role == 'parent' %}var(--info), #2563eb{% else %}var(--primary), var(--primary-dark){% endif %});">
+            {{ u.first_name|first|default:u.username|first }}
+        </div>
+        <div style="flex: 1;">
+            <div style="font-weight: 600; font-size: 0.9rem;">{{ u.get_full_name|default:u.username }}</div>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">{{ u.email|default:"No email" }} • {{ u.phone|default:"No phone" }}</div>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 0.5rem;">
+            <span class="role-badge {{ u.role }}">{{ u.get_role_display }}</span>
+            <a href="{% url 'user_delete' u.pk %}" class="btn btn-outline btn-sm" style="color: var(--danger); border-color: var(--danger); padding: 0.2rem 0.5rem; font-size: 0.7rem;">🗑️ Delete</a>
+        </div>
+    </div>
+    {% empty %}
+    <div class="empty-state" style="grid-column: 1/-1;"><div class="empty-icon">👻</div><p>No users found.</p></div>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}New Message — Nurture{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">📝 Send Message (Teacher/Admin)</h1>
+    <a href="{% url 'notice_list' %}" class="btn btn-outline btn-sm">← Back</a>
+</div>
+
+<div class="card" style="max-width: 600px;">
+    <form method="post">
+        {% csrf_token %}
+        <div class="form-group">
+            <label class="form-label">Title *</label>
+            {{ form.title }}
+        </div>
+        
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+            <div class="form-group">
+                <label class="form-label">Notice Type *</label>
+                {{ form.notice_type }}
+            </div>
+            <div class="form-group">
+                <label class="form-label">Target Audience *</label>
+                {{ form.target_scope }}
+            </div>
+        </div>
+        
+        <div id="batch-field" class="form-group" style="display: none;">
+            <label class="form-label">Select Batch *</label>
+            {{ form.target_batch }}
+        </div>
+        
+        <div class="form-group">
+            <label class="form-label">Message *</label>
+            {{ form.message }}
+        </div>
+        
+        <div style="display: flex; gap: 1.5rem; margin-bottom: 1.5rem; align-items: center;">
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                {{ form.send_whatsapp }}
+                <span style="font-size: 0.85rem; font-weight: 600; color: var(--success);">📱 Send via WhatsApp too</span>
+            </label>
+            <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
+                {{ form.is_pinned }}
+                <span style="font-size: 0.85rem; font-weight: 600;">📌 Pin to top</span>
+            </label>
+        </div>
+        
+        <button type="submit" class="btn btn-primary w-full">Send Message</button>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    const targetScope = document.querySelector('[name="target_scope"]');
+    const batchField = document.getElementById('batch-field');
+    
+    function toggleFields() {
+        batchField.style.display = targetScope.value === 'specific_batch' ? 'block' : 'none';
+    }
+    
+    targetScope.addEventListener('change', toggleFields);
+    toggleFields(); // Init
+</script>
+{% endblock %}
