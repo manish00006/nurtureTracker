@@ -75,6 +75,7 @@ WSGI_APPLICATION = 'nurture_config.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 DATABASES = {
     'default': dj_database_url.config(
+        env='POSTGRES_URL' if 'POSTGRES_URL' in os.environ else 'DATABASE_URL',
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
         conn_max_age=600,
         conn_health_checks=True,
